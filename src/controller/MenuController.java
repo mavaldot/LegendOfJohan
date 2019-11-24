@@ -29,8 +29,6 @@ public class MenuController {
 		gameController.begin();
 		stage.setScene(gameScene);
 		
-		
-		
 	}
 	
 }
