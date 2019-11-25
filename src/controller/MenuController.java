@@ -26,6 +26,7 @@ public class MenuController {
 		Stage stage = (Stage) menuScene.getWindow();
 		Scene gameScene = new Scene(gamePane, 800, 600);
 		GameController gameController = (GameController) gameLoader.getController();
+		gameController.setStage(stage);
 		gameController.begin();
 		stage.setScene(gameScene);
 		

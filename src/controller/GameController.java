@@ -1,25 +1,35 @@
 package controller;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.ResourceBundle;
 
+import animation.MarioAnimation;
 import javafx.animation.AnimationTimer;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
 import javafx.fxml.Initializable;
 import javafx.scene.Group;
+import javafx.scene.Node;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Rectangle;
+import javafx.stage.Stage;
 import javafx.util.Duration;
+import model.Block;
 import model.Game;
 import model.Mario;
-import panes.CharacterPane;
+import model.State;
 import thread.GameThread;
 import view.Main;
 
@@ -29,32 +39,45 @@ public class GameController implements Initializable {
 	
 	private Mario player;
 	private Game game;
+	private Block b;
+	private boolean gameOver;
+	
+	private Stage stage;
 	
 	Image image = new Image(getClass().getResourceAsStream("mario.png"));
 	
 	ImageView imgV = new ImageView(image);
 	
+	private Rectangle blocks;
 	private Group mario;
 	
 	boolean moving = true;
 	
-	Image MARIO = new Image(Main.class.getResourceAsStream("MARIOIDLE.png"));
-	Image MARIORUN1 = new Image(Main.class.getResourceAsStream("MARIORUN1.png"));
-	Image MARIORUN2 = new Image(Main.class.getResourceAsStream("MARIORUN2.png"));
-	Image MARIORUN3 = new Image(Main.class.getResourceAsStream("MARIORUN3.png"));
+	MarioAnimation marioAnim;
 	
 	
 	private final int levelWidth = 1500;
 	
 	@FXML
-	AnchorPane ap;
+	Pane root;
+	
+	@FXML
+	Pane gamePane;
 	
 	@Override
 	public void initialize(URL arg0, ResourceBundle arg1) {
 		
-		player = new Mario(0, 0, 1, 1);
-		game = new Game(player);
+		player = new Mario(0, 0, 50, 100);
+		game = new Game(player, keys);
 		
+		gamePane = new Pane();
+		gamePane.setPrefHeight(800);
+		gamePane.setPrefWidth(2400);
+	    gamePane.setStyle("-fx-background-color: deepskyblue;");
+	}
+	
+	public void setStage(Stage s) {
+		stage = s;
 	}
 	
 	public void update() {
@@ -71,7 +94,26 @@ public class GameController implements Initializable {
 	
 	public void begin() {
 		
-		Scene scene = ap.getScene();
+		mario = new Group();
+		
+		
+		b = game.getBlock();			
+		
+		blocks = new Rectangle(0, 0, b.getWidth(), b.getHeight());
+		blocks.setFill(Color.SIENNA);
+		
+		marioAnim = new MarioAnimation(mario);
+		
+		mario.translateXProperty().addListener( (obs, old, newVal) -> {
+			
+			int offset = newVal.intValue();
+			
+			if (offset > 400 && offset < levelWidth - 400) 
+				gamePane.setLayoutX(-(offset - 400));
+			
+		});
+		
+		Scene scene = root.getScene();
 		
 		scene.setOnKeyPressed( (event) -> {
 			keys.put(event.getCode(), true);
@@ -81,74 +123,30 @@ public class GameController implements Initializable {
 			keys.put(event.getCode(), false);
 		});
 		
-
-		
-		final ImageView mario1 = new ImageView(MARIO);
-		ImageView mariorun1 = new ImageView(MARIORUN1);
-		ImageView mariorun2 = new ImageView(MARIORUN2);
-		ImageView mariorun3 = new ImageView(MARIORUN3);
-		
-		mariorun1.setPreserveRatio(true);
-		mariorun2.setPreserveRatio(true);
-		mariorun3.setPreserveRatio(true);
-		
-		mariorun1.setFitHeight(100);
-		mariorun1.setFitWidth(100);
-		
-		mariorun2.setFitHeight(100);
-		mariorun2.setFitWidth(100);
-		
-		mariorun3.setFitHeight(100);
-		mariorun3.setFitWidth(100);
-		
-		mario = new Group(mario1);
 		
 		mario.translateXProperty().addListener( (obs, old, newVal) -> {
 			
 			int offset = newVal.intValue();
 			
-			if (offset > 640 && offset < levelWidth - 640) 
-				ap.setLayoutX(-(offset - 640));
+			if (offset > 400 && offset < levelWidth - 400) 
+				gamePane.setLayoutX(-(offset - 400));
 			
 		});
 		
-		Timeline t = new Timeline();
-		t.setCycleCount(Timeline.INDEFINITE);
+		Timeline t = marioAnim.generateRunTimeline();
 		
-		t.getKeyFrames().add(new KeyFrame(
-				Duration.millis(100),
-				(ActionEvent event) -> {
-					mario.getChildren().setAll(mariorun1);
-				}
-		));
+		Timeline t2 = marioAnim.generateIdleTimeline();
 		
-		t.getKeyFrames().add(new KeyFrame(
-				Duration.millis(200),
-				(ActionEvent event) -> {
-					mario.getChildren().setAll(mariorun2);
-				}
-		));
+		Timeline t3 = marioAnim.generateJumpTimeline();
 		
-		t.getKeyFrames().add(new KeyFrame(
-				Duration.millis(300),
-				(ActionEvent event) -> {
-					mario.getChildren().setAll(mariorun3);
-				}
-		));
+		blocks.setTranslateX(b.getX());
+		blocks.setTranslateY(b.getY());
 		
-		t.play();
+		gamePane.getChildren().addAll(mario, blocks);
 		
-		Timeline t2 = new Timeline();
-		t2.setCycleCount(Timeline.INDEFINITE);
+		root.getChildren().addAll(gamePane);
 		
-		t2.getKeyFrames().add(new KeyFrame(
-				Duration.millis(100),
-				(ActionEvent event) -> {
-					mario.getChildren().setAll(mario1);
-				}
-		));
 		
-		ap.getChildren().addAll(mario);
 		
 		new AnimationTimer() {
 
@@ -156,22 +154,66 @@ public class GameController implements Initializable {
 			public void handle(long arg0) {
 				// TODO Auto-generated method stub
 				
-				if (moving) {
-					t2.stop();
-					t.play();
-				}
-				else {
+				State state = game.state;
+				
+				switch (state) {
+				
+				case IDLE:
+					t3.stop();
 					t.stop();
 					t2.play();
+					break;
+					
+				case RIGHT:
+					mario.setScaleX(1);
+					t3.stop();
+					t2.stop();
+					t.play();
+					break;
+				case LEFT:
+					mario.setScaleX(-1);
+					t3.stop();
+					t2.stop();
+					t.play();
+					break;
+				case JUMP:
+					t.stop();
+					t2.stop();
+					t3.play();
+					break;
+					
 				}
 				
 				mario.setTranslateX(player.getX());
+				mario.setTranslateY(player.getY());
 				
+				if (game.isGameOver()) {
+					
+					try {
+						loadMenu();
+					} 
+					catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
+					this.stop();
+				}
 			}
 			
 		}.start();
 		
 		new GameThread(game).start();
+		
+	}
+	
+
+	
+	public void loadMenu() throws IOException {
+		FXMLLoader menuLoader = new FXMLLoader(getClass().getResource("/view/Menu.fxml"));
+		Parent menuPane = menuLoader.load();
+		Scene menuScene = new Scene(menuPane, 800, 600);
+		stage.setScene(menuScene);
 		
 	}
 	
